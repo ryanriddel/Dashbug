@@ -68,6 +68,16 @@ jQuery(document).ready(function(){
     {
         databaseResponseHandler(msg);
     });
+    socket.on('update_station_data', function(msg)
+    {
+        //this is used to update the state of a ground station in the station jqGrid or plot
+        updateStationData(msg);
+    });
+    socket.on('update_error_data', function(msg)
+    {
+        //this adds an error, which will update a couple jqGrids and (probably) a plot
+
+    });
 
     $('.ui-jqgrid').css("font-size:10px;");
 
@@ -209,11 +219,11 @@ function databaseResponseHandler(response)
             data:response.data,
             datatype: "local",
             mtype: "GET",
-            colNames: ["Station Name", "ID", "Running Since", "Status", "Last Error"],
+            colNames: ["Station Name", "ID", "Last Update", "Status", "Last Error"],
             colModel: [
                 { name: "name", width: stationExplorerColWidth[0] },
                 { name: "id", width: stationExplorerColWidth[1] },
-                { name: "birth_date", width: stationExplorerColWidth[2], align: "right" },
+                { name: "last_update_timestamp", width: stationExplorerColWidth[2], align: "right" },
                 { name: "status", width: stationExplorerColWidth[3], align: "right" },
                 { name: "last_error", width:stationExplorerColWidth[4], align: "right"}
             ],
@@ -397,7 +407,10 @@ function databaseResponseHandler(response)
     }
 }
 
-
+function updateStationData(msg)
+{
+    //message will be a station object
+}
 
 function initializeDatePicker()
 {

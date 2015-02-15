@@ -15,16 +15,11 @@ router.get('/dbquery', function(req, res, next)
         res.json(items);
     });
 });
-
-router.get('/test', function(req, res, next)
-{
-	console.log("HOLY SHIT");
-	console.log(req.body);
-});
-
+//this is an update from a groundstation
 router.post('/p', function(req, res)
 { 
-    console.log(req.body.message);
+	//we should probably pass this to server_tools
+    console.log(req.body.groundstation_name + ":" + req.body.groundstation_id + ":" + req.body.message);
     res.writeHead(200, {'Content-Type':'text/plaintext'});
     res.end();
 });

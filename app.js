@@ -8,7 +8,7 @@ var bodyParser = require('body-parser');
 //Database
 var mongo = require('mongoskin');
 var db = mongo.db("mongodb://localhost:27017/db", {native_parser:true});
-
+GLOBAL.db=db;
 
 
 var routes = require('./routes/index');
@@ -81,7 +81,7 @@ io.on('connection', function(socket)
     {
         updateDatabase(msg);
     });*/
-
+    GLOBAL.socket=socket;
     socket.on('button_pressed', function(msg)
     {
         console.log(msg);
@@ -93,15 +93,11 @@ io.on('connection', function(socket)
         console.log(query.collection + "\n" + query.msg);
         server_tools.queryDatabase(db, query, socket);
     });
+
+
 });
 
 
-
-//REMOVE THIS
-setInterval(function()
-{
-    io.emit('date_broadcast', Date());
-}, 1000);
 
 
 //********************

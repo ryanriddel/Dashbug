@@ -6,8 +6,6 @@ jQuery(document).ready(function(){
     initializeDatePicker();
     socket = io();
 
-    $('#stationlist tbody').on('click', 'td a.linkshowuser', showStationInfo);
-    $('#btn_send_socket').on('click', sendSocket);
     $('#test_button').on('click', getStations);
     $('#test_button').on('click', getErrorProne);
     $('#test_button').on('click', getRecentError);
@@ -23,12 +21,7 @@ jQuery(document).ready(function(){
       jQuery('#recent_error_grid').setGridWidth(newWidth2);
       }).trigger('resize');
 
-    $('#station_error_grid_pager').css("font-size", "10px;");
-
-    socket.on('date_broadcast', function(msg)
-    {
-        $('h1').text(msg);
-    })
+    $('#station_error_grid_pager').css("font-size", "10px;"); 
 
     socket.on('database_response_station_list', function(msg)
     {
@@ -71,69 +64,24 @@ jQuery(document).ready(function(){
     socket.on('update_station_data', function(msg)
     {
         //this is used to update the state of a ground station in the station jqGrid or plot
+        console.log("GOT A SOCKET: UPDATE");
         updateStationData(msg);
     });
-    socket.on('update_error_data', function(msg)
+    socket.on('add_error', function(msg)
     {
         //this adds an error, which will update a couple jqGrids and (probably) a plot
+        console.log("GOT A SOCKET: ADD ERROR");
+        addError(msg);
 
     });
 
     $('.ui-jqgrid').css("font-size:10px;");
-
-    populateTable();
 });
 
-function sendSocket()
-{
-    socket.emit('button_pressed', $('#socket_data').val());
-}
-
-function populateTable()
-{
-    console.log("Requesting Database Contents");
-    var tableContent="";
-
-    jQuery.getJSON('users/userlist', function(data)
-    {
-        stationListData=data;
-        for(var i=0; i<data.length; i++)
-        {
-            tableContent+="<tr>";
-            tableContent+="<td><a href='#' class='linkshowuser' rel='" + data[i].name + "' >" + data[i].name + "</a></td>";
-            tableContent+="<td>" + data[i].status + "</td>";
-            tableContent+="<td><a href='#' class='linkdeleteuser'>delete</a></td>";
-            tableContent+="</tr>";
-            
-        }
-        $("#stationlist tbody").html(tableContent);
-    });
-    
-    
-}
-
-function showStationInfo(event)
-{
-    event.preventDefault();
-
-    var thisStationName=$(this).attr('rel');
-
-    var arrayPosition=stationListData.map(function(arrayItem){ return arrayItem.name;}).indexOf(thisStationName);
-
-    var stationObj=stationListData[arrayPosition];
-
-    $('#station_name').text(stationObj.name);
-    $('#station_birth_date').text(stationObj.birth_date);
-    $('#station_id').text(stationObj.id);
-    $('#station_status').text(stationObj.status);
-
-}
 
 function queryDatabase(query)
 {
     socket.emit('database_query', query);
-
-
 }
 
 function getStations()
@@ -211,7 +159,7 @@ function databaseResponseHandler(response)
         var stationExplorerWidth=stationExplorer.clientWidth;
         //stationExplorerWidth-=30; //this is to accomodate the leftmost header cell.
 
-        var stationExplorerColWidth=[150/1190*stationExplorerWidth, 50/1190*stationExplorerWidth, 345/1190*stationExplorerWidth, 250/1190*stationExplorerWidth, 355/1190*stationExplorerWidth];
+        var stationExplorerColWidth=[130/1190*stationExplorerWidth, 50/1190*stationExplorerWidth, 220/1190*stationExplorerWidth, 130/1190*stationExplorerWidth, 180/1190*stationExplorerWidth, 155/1190*stationExplorerWidth, 250/1190*stationExplorerWidth];
         
         console.log(response.data);
 
@@ -219,13 +167,15 @@ function databaseResponseHandler(response)
             data:response.data,
             datatype: "local",
             mtype: "GET",
-            colNames: ["Station Name", "ID", "Last Update", "Status", "Last Error"],
+            colNames: ["Station Name", "ID", "Last Update", "Status", "Last Error", "Number of Swaps", "State"],
             colModel: [
-                { name: "name", width: stationExplorerColWidth[0] },
-                { name: "id", width: stationExplorerColWidth[1] },
-                { name: "last_update_timestamp", width: stationExplorerColWidth[2], align: "right" },
-                { name: "status", width: stationExplorerColWidth[3], align: "right" },
-                { name: "last_error", width:stationExplorerColWidth[4], align: "right"}
+                { name: "name", width: stationExplorerColWidth[0] , align:"center"},
+                { name: "id", width: stationExplorerColWidth[1], align:"center" },
+                { name: "last_update_timestamp", width: stationExplorerColWidth[2], align:"center"},
+                { name: "status", width: stationExplorerColWidth[3], align:"center"},
+                { name: "last_error", width:stationExplorerColWidth[4], align:"center"},
+                { name: "number_of_swaps", width:stationExplorerColWidth[5], align:"center"},
+                { name: "state", width:stationExplorerColWidth[6], align:"center"}
             ],
             pager: "#station_list_pager",
             rowNum: 10,
@@ -254,10 +204,10 @@ function databaseResponseHandler(response)
             mtype: "GET",
             colNames: ["Station ID", "Lifetime Errors", "Oldest Error (Date)", "Newest Error (Date)"],
             colModel: [
-                { name: "ground_station_id", width: stationErrorGridColWidth[0] },
-                { name: "lifetime_errors", width: stationErrorGridColWidth[1] },
-                { name: "last_error", width: stationErrorGridColWidth[2], align: "right" },
-                { name: "most_recent_error", width: stationErrorGridColWidth[3], align: "right" }
+                { name: "ground_station_id", width: stationErrorGridColWidth[0], align:"center" },
+                { name: "lifetime_errors", width: stationErrorGridColWidth[1], align:"center" },
+                { name: "last_error", width: stationErrorGridColWidth[2], align:"center"},
+                { name: "most_recent_error", width: stationErrorGridColWidth[3], align:"center"}
             ],
             pager: "#station_error_grid_pager",
             
@@ -285,12 +235,12 @@ function databaseResponseHandler(response)
             data:response.data,
             datatype: "local",
             mtype: "GET",
-            colNames: ["Module", "Date", "Error Message", "State"],
+            colNames: ["Module", "Date", "Error Message", "Swaps Before Error"],
             colModel: [
-                { name: "module", width: recentErrorGridColWidth[0] },
-                { name: "timestamp", width: recentErrorGridColWidth[1] },
-                { name: "error_message", width: recentErrorGridColWidth[2], align: "right" },
-                { name: "state", width: recentErrorGridColWidth[3], align: "right" }
+                { name: "module", width: recentErrorGridColWidth[0], align:"center" },
+                { name: "timestamp", width: recentErrorGridColWidth[1] , align:"center"},
+                { name: "error_message", width: recentErrorGridColWidth[2], align:"center"},
+                { name: "swaps_before_error", width: recentErrorGridColWidth[3], align:"center"}
             ],
             pager: "#recent_error_grid_pager",
             rowNum: 10,
@@ -409,7 +359,32 @@ function databaseResponseHandler(response)
 
 function updateStationData(msg)
 {
-    //message will be a station object
+    //The update has already been pushed to the server, we just need to update UI elements.
+
+    //update station explorer
+    console.log("Changing cell value");
+    console.log(msg);
+    changejqGridCell('station_list_grid', msg.id, msg.update_type, msg.data);
+    changejqGridCell('station_list_grid', msg.id, 'last_update_timestamp', unixTimestampToJavascriptDate(Date.now()/1000));
+
+}
+
+function changejqGridCell(jqGridId, groundstation_id, attribute_to_change, new_value)
+{
+
+    var gridContainer=$('#' + jqGridId);
+    var rowData=gridContainer.jqGrid('getRowData', groundstation_id);
+
+    rowData[attribute_to_change]=new_value;
+
+    gridContainer.jqGrid('setRowData', groundstation_id, rowData);
+}
+
+function addError(msg)
+{
+    //The error has already been inserted into the database.  We just need to update the UI elements.
+    console.log("UPDATE ERRORS");
+    console.log(msg);
 }
 
 function initializeDatePicker()
@@ -433,12 +408,11 @@ function initializeDatePicker()
 
 }
 
-function dropDownClick()
+function unixTimestampToJavascriptDate(timestamp)
 {
-
+    var tempDate=new Date(timestamp*1000);
+    return (tempDate.toLocaleTimeString() + "  " + (tempDate.getMonth()+1) + "/" + tempDate.getDate() + "/" + tempDate.getFullYear());
 }
-
-
 
 
 

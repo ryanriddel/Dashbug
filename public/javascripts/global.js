@@ -1,16 +1,28 @@
 var stationListData=[];
 var socket;
+var server_socket;
+
+var ui_init={station_list_grid:false, recent_error_grid:false, station_error_grid:false, module_failure_plot:false, swaps_before_failure_date:false, swaps_before_failure_gs_recent:false, swaps_before_failure_gs_average:false};
+
 
 jQuery(document).ready(function(){
     console.log("Page load");
     initializeDatePicker();
     socket = io();
 
-    $('#test_button').on('click', getStations);
+    getStations();
+    getRecentError();
+    getErrorProne();
+    getModuleError();
+    getSwapsBeforeFailure();
+
+
+    /*
     $('#test_button').on('click', getErrorProne);
     $('#test_button').on('click', getRecentError);
     $('#test_button').on('click', getModuleError);
     $('#test_button').on('click', getSwapsBeforeFailure);
+    */
 
     //this will dynamically resize jqGrid's if the user changes the size of the window
     jQuery(window).bind('resize', function() {
@@ -72,15 +84,21 @@ jQuery(document).ready(function(){
         //this adds an error, which will update a couple jqGrids and (probably) a plot
         console.log("GOT A SOCKET: ADD ERROR");
         addError(msg);
-
+    });
+    socket.on('socket_info', function(msg)
+    {
+        server_socket=msg;
     });
 
     $('.ui-jqgrid').css("font-size:10px;");
+
+    
 });
 
 
 function queryDatabase(query)
 {
+    query.server_socket=server_socket;
     socket.emit('database_query', query);
 }
 
@@ -153,17 +171,18 @@ function getRecentError()
 
 function databaseResponseHandler(response)
 {
-    if(response.query.tag=="station_list")
+    //this if block initializes the UI elements
+    if(response.query.tag=="station_list" && !ui_init.station_list_grid)
     {
         var stationExplorer=document.getElementById("station_explorer");
-        var stationExplorerWidth=stationExplorer.clientWidth;
-        //stationExplorerWidth-=30; //this is to accomodate the leftmost header cell.
+        var stationExplorerWidth=stationExplorer.clientWidth-30;//this is to accomodate the leftmost header cell.
+        
 
-        var stationExplorerColWidth=[130/1190*stationExplorerWidth, 50/1190*stationExplorerWidth, 220/1190*stationExplorerWidth, 130/1190*stationExplorerWidth, 180/1190*stationExplorerWidth, 155/1190*stationExplorerWidth, 250/1190*stationExplorerWidth];
+        var stationExplorerColWidth=[145/1190*stationExplorerWidth, 50/1190*stationExplorerWidth, 250/1190*stationExplorerWidth, 130/1190*stationExplorerWidth, 180/1190*stationExplorerWidth, 155/1190*stationExplorerWidth, 280/1190*stationExplorerWidth];
         
         console.log(response.data);
 
-        $('#station_list_grid').jqGrid({
+        station_list_grid=$('#station_list_grid').jqGrid({
             data:response.data,
             datatype: "local",
             mtype: "GET",
@@ -187,18 +206,20 @@ function databaseResponseHandler(response)
             autoencode: true,
             //caption: "Station Explorer"
         });
+        ui_init.station_list_grid=true;
     }
-    else if(response.query.tag=="error_prone_list")
+    else if(response.query.tag=="error_prone_list" && !ui_init.station_error_grid)
     {
         var stationErrorGrid=document.getElementById("station_error");
         var stationErrorGridWidth=stationErrorGrid.clientWidth;
     
         stationErrorGridWidth-=30; //this is to accomodate the minimization arrow.
+        
         var stationErrorGridColWidth=[80/470*stationErrorGridWidth, 100/470*stationErrorGridWidth, 140/470*stationErrorGridWidth, 150/470*stationErrorGridWidth];
         console.log("ERROR PRONE");
         console.log(response.data);
 
-        $('#station_error_grid').jqGrid({
+        station_error_grid=$('#station_error_grid').jqGrid({
             data:response.data,
             datatype: "local",
             mtype: "GET",
@@ -220,18 +241,19 @@ function databaseResponseHandler(response)
             autoencode: true,
             //caption: "Station Explorer"
         });
+        ui_init.station_error_grid=true;
     }
-    else if(response.query.tag=="recent_error_list")
+    else if(response.query.tag=="recent_error_list" && !ui_init.recent_error_grid)
     {
-        var recentErrorGrid=document.getElementById("recent_error")
+        var recentErrorGrid=document.getElementById("recent_error");
         var recentErrorGridWidth=recentErrorGrid.clientWidth;
-    //containerWidth=containerWidth-container.css('padding-right')-container.css('padding-left');
+        //containerWidth=containerWidth-container.css('padding-right')-container.css('padding-left');
         recentErrorGridWidth-=30; //this is to accomodate the minimization arrow.
         var recentErrorGridColWidth=[95/566*recentErrorGridWidth, 130/566*recentErrorGridWidth, 166/566*recentErrorGridWidth, 175/566*recentErrorGridWidth];
         console.log("RECENT ERROR");
         console.log(response.data);
 
-        $('#recent_error_grid').jqGrid({
+        recent_error_grid=$('#recent_error_grid').jqGrid({
             data:response.data,
             datatype: "local",
             mtype: "GET",
@@ -252,12 +274,11 @@ function databaseResponseHandler(response)
             autoencode: true,
             //caption: "Station Explorer"
         });
+        ui_init.recent_error_grid=true;
     }
-    else if(response.query.tag=="module_failure_plot")
-    {
-        console.log("MODULE FAILURE");
-        console.log(response.data);
-        Morris.Bar
+    else if(response.query.tag=="module_failure_plot" && !ui_init.module_failure_plot)
+    {        
+        module_failure_plot=Morris.Bar
         ({
             element: 'module_error_plot',
             datatype:'local',
@@ -271,19 +292,15 @@ function databaseResponseHandler(response)
             resize: true,
             tag: 'module_failure_plot'
         });
+        ui_init.module_failure_plot=true;
 
     }
-    else if(response.query.tag=='swaps_before_failure_date')
+    else if(response.query.tag=='swaps_before_failure_date' && !ui_init.swaps_before_failure_date)
     {
         
-           /* var swapDataPoints=response.data[i];
-            var ground_station_id=swapDataPoint[0].ground_station_id;*/
-
-
             //we need to create an array of objects that look like this
-            console.log("DATA COMING");
-            console.log(response.data);
-            Morris.Line({
+            
+            swaps_before_failure_date=Morris.Line({
                 // ID of the element in which to draw the chart.
                 element: 'swap_failure_plot',
                 // Chart data records -- each entry in this array corresponds to a point on
@@ -303,10 +320,11 @@ function databaseResponseHandler(response)
                 smooth: false,
                 resize: true
             });
+            ui_init.swaps_before_failure_date=true;
     }
-    else if(response.query.tag=='swaps_before_failure_gs_recent')
+    else if(response.query.tag=='swaps_before_failure_gs_recent' && !ui_init.swaps_before_failure_gs_recent)
     {
-        Morris.Bar
+        swaps_before_failure_gs_recent=Morris.Bar
         ({
             element: 'swap_failure_plot', //*******
             datatype:'local',
@@ -320,10 +338,11 @@ function databaseResponseHandler(response)
             resize: true,
             tag: 'swap_failure_plot'
         });
+        ui_init.swaps_before_failure_gs_recent=true;
     }
-    else if(response.query.tag=='swaps_before_failure_gs_best')
+    else if(response.query.tag=='swaps_before_failure_gs_best' && !ui_init.swaps_before_failure_gs_best)
     {
-        Morris.Bar
+        swaps_before_failure_gs_best=Morris.Bar
         ({
             element: 'swap_failure_plot',
             datatype:'local',
@@ -337,10 +356,12 @@ function databaseResponseHandler(response)
             resize: true,
             tag: 'swap_failure_plot'
         });
+
+        ui_init.swaps_before_failure_gs_best=true;
     }
-    else if(response.query.tag=='swaps_before_failure_gs_average')
+    else if(response.query.tag=='swaps_before_failure_gs_average' && !ui_init.swaps_before_failure_gs_average)
     {
-        Morris.Bar
+        swaps_before_failure_gs_average=Morris.Bar
         ({
             element: 'swap_failure_plot',
             datatype:'local',
@@ -354,16 +375,51 @@ function databaseResponseHandler(response)
             resize: true,
             tag: 'swap_failure_plot'
         });
+        ui_init.swaps_before_failure_gs_average=true;
     }
+    
+    
+    //we've already constructed the plots.  All we do here is update their data and redraw them
+    if(response.query.tag=="station_list" && ui_init.station_list_grid)
+    {
+        station_list_grid.data=response.data;
+    }
+    else if(response.query.tag=="error_prone_list" && ui_init.station_error_grid)
+    {
+        station_error_grid.data=response.data;
+    }
+    else if(response.query.tag=="recent_error_list" && ui_init.recent_error_grid)
+    {
+        recent_error_grid.data=response.data;
+    }
+    else if(response.query.tag=="module_failure_plot" && ui_init.module_failure_plot)
+    {        
+        module_failure_plot.data=response.data;
+    }
+    else if(response.query.tag=='swaps_before_failure_date' && ui_init.swaps_before_failure_date)
+    {
+        swaps_before_failure_date.data=response.data;
+    }
+    else if(response.query.tag=='swaps_before_failure_gs_recent' && ui_init.swaps_before_failure_gs_recent)
+    {
+        swaps_before_failure_gs_recent.data=response.data;
+    }
+    else if(response.query.tag=='swaps_before_failure_gs_best' && ui_init.swaps_before_failure_gs_best)
+    {
+        swaps_before_failure_gs_best.data=response.data;   
+    }
+    else if(response.query.tag=='swaps_before_failure_gs_average' && ui_init.swaps_before_failure_gs_recent)
+    {
+        swaps_before_failure_gs_average.data=response.data;
+    }
+
+    
 }
 
 function updateStationData(msg)
 {
     //The update has already been pushed to the server, we just need to update UI elements.
 
-    //update station explorer
-    console.log("Changing cell value");
-    console.log(msg);
     changejqGridCell('station_list_grid', msg.id, msg.update_type, msg.data);
     changejqGridCell('station_list_grid', msg.id, 'last_update_timestamp', unixTimestampToJavascriptDate(Date.now()/1000));
 
@@ -382,19 +438,19 @@ function changejqGridCell(jqGridId, groundstation_id, attribute_to_change, new_v
 
 function addError(msg)
 {
-    //The error has already been inserted into the database.  We just need to update the UI elements.
-    console.log("UPDATE ERRORS");
-    console.log(msg);
+    //Errors are infrequenct enough that we can just re-query the database to request the appropriate data structure
+    var query={tag: 'error_prone_list', msg: '', collection:'errorlist'};
+    queryDatabase(query);
+
 }
 
 function initializeDatePicker()
 {
-/*This block initializes datepicker objects and sets up event handlers */
+    /*This block initializes datepicker objects and sets up event handlers */
     
    var datePicker=jQuery('.datepick').datepicker({
       format: 'mm-dd-yyyy'
     });
-   
 
    datePicker.on('changeDate', function(ev)
    {
@@ -402,10 +458,7 @@ function initializeDatePicker()
         datePicker.datepicker('hide');
 
         var beginDate=ev.date;
-        
-        
    });
-
 }
 
 function unixTimestampToJavascriptDate(timestamp)

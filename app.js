@@ -1,3 +1,4 @@
+
 var express = require('express');
 var path = require('path');
 var favicon = require('serve-favicon');
@@ -11,7 +12,7 @@ var db = mongo.db("mongodb://localhost:27017/db", {native_parser:true});
 GLOBAL.db=db;
 
 
-var routes = require('./routes/index');
+
 var users = require('./routes/users');
 var server_tools = require('./node_modules/server_tools/server_tools.js');
 
@@ -23,7 +24,7 @@ var http=require('http').Server(app);
 var io=require('socket.io')(http);
 
 var gsListener=require('http');
-
+var routes = require('./routes/index')(io);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -66,8 +67,6 @@ app.use(function(req, res, next){
   }
 });
 
-app.use('/test', routes);
-
 app.use('/p', routes);
 
 app.listen(8080);
@@ -76,12 +75,8 @@ app.listen(8080);
 //******SOCKET********
 io.on('connection', function(socket)
 {
-    console.log("user connected");
-    /*socket.on('ground_station_update', function(msg)
-    {
-        updateDatabase(msg);
-    });*/
-    GLOBAL.socket=socket;
+    console.log("socket connected");
+    
     socket.on('button_pressed', function(msg)
     {
         console.log(msg);
@@ -94,6 +89,9 @@ io.on('connection', function(socket)
         server_tools.queryDatabase(db, query, socket);
     });
 
+    //we're going to have the client store the server socket object so we know where to send responses that are routed in index.js
+    //socket.emit('socket_info', socket);
+
 
 });
 
@@ -101,20 +99,11 @@ io.on('connection', function(socket)
 
 
 //********************
+//this is for sockets
 http.listen(3333, function()
 {
     console.log('listening on 3334');
 });
-
-app.use('/dbquery', routes);
-
-/*
-gsListener.createServer(function(req, res)
-{
-    console.log("DATA RECEIVED:");
-    console.log(req);
-    
-}).listen(8080);*/
 
 //*********ERROR HANDLERS*********
 
